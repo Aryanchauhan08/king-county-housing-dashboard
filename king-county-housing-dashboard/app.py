@@ -80,32 +80,46 @@ st.markdown("""
 # -----------------------------------------------------------------------------
 # DATA ENGINE
 # -----------------------------------------------------------------------------
+from pathlib import Path
+
+# This dynamically finds the folder where your script is running
+PARENT_DIR = Path(__file__).parent
+
 # --- 2. Data Loading ---
 @st.cache_data
 def load_data():
-    df = pd.read_csv('data.csv')
-    df['date'] = pd.to_datetime(df['date'], errors="coerce")
+    # Construct the path relative to the script
+    # Change 'data.csv' to the EXACT name in your GitHub repo (e.g., 'kc_house_data.csv')
+    data_path = PARENT_DIR / 'data.csv' 
     
-    # Feature Engineering
-    if "price" in df.columns and "sqft_living" in df.columns:
-        df["price_per_sqft"] = df["price"] / df["sqft_living"]
+    try:
+        df = pd.read_csv(data_path)
+        df['date'] = pd.to_datetime(df['date'], errors="coerce")
         
-    # Clean Data (Remove 0 prices)
-    if "price" in df.columns:
-        df = df[df["price"] > 0]
+        # Feature Engineering
+        if "price" in df.columns and "sqft_living" in df.columns:
+            df["price_per_sqft"] = df["price"] / df["sqft_living"]
+            
+        # Clean Data (Remove 0 prices)
+        if "price" in df.columns:
+            df = df[df["price"] > 0]
 
-    # Clean city names if necessary (e.g. title case)
-    if 'city' in df.columns:
-        df['city'] = df['city'].apply(lambda x: str(x).title())
-    return df
+        if 'city' in df.columns:
+            df['city'] = df['city'].apply(lambda x: str(x).title())
+        return df
+    except FileNotFoundError:
+        st.error(f"💥 Could not find {data_path}. Check your GitHub repo for the exact filename!")
+        return pd.DataFrame()
 
 @st.cache_data
 def load_geojson():
+    geojson_path = PARENT_DIR / 'City_Boundaries.geojson'
     try:
-        with open('City_Boundaries.geojson') as f:
+        with open(geojson_path) as f:
             return json.load(f)
     except Exception as e:
-        st.error(f"Error loading GeoJSON: {e}")
+        # We use st.warning here so the app doesn't crash if map data is missing
+        st.warning(f"⚠️ GeoJSON not found at {geojson_path}. Map may not render.")
         return None
 
 df = load_data()

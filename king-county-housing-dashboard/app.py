@@ -4,6 +4,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import json
+from pathlib import Path
 import folium
 from streamlit_folium import st_folium
 
@@ -80,17 +81,14 @@ st.markdown("""
 # -----------------------------------------------------------------------------
 # DATA ENGINE
 # -----------------------------------------------------------------------------
-from pathlib import Path
-
-# This dynamically finds the folder where your script is running
-PARENT_DIR = Path(__file__).parent
+# Define the directory where app.py is actually located
+PARENT_DIR = Path(__file__).resolve().parent
 
 # --- 2. Data Loading ---
 @st.cache_data
 def load_data():
-    # Construct the path relative to the script
-    # Change 'data.csv' to the EXACT name in your GitHub repo (e.g., 'kc_house_data.csv')
-    data_path = PARENT_DIR / 'data.csv' 
+    # Use the absolute path to ensure deployment finds the file
+    data_path = PARENT_DIR / 'data.csv'
     
     try:
         df = pd.read_csv(data_path)
@@ -100,7 +98,7 @@ def load_data():
         if "price" in df.columns and "sqft_living" in df.columns:
             df["price_per_sqft"] = df["price"] / df["sqft_living"]
             
-        # Clean Data (Remove 0 prices)
+        # Clean Data
         if "price" in df.columns:
             df = df[df["price"] > 0]
 
@@ -108,7 +106,7 @@ def load_data():
             df['city'] = df['city'].apply(lambda x: str(x).title())
         return df
     except FileNotFoundError:
-        st.error(f"💥 Could not find {data_path}. Check your GitHub repo for the exact filename!")
+        st.error(f"❌ File not found at {data_path}. Please check your GitHub folder structure.")
         return pd.DataFrame()
 
 @st.cache_data
@@ -118,8 +116,8 @@ def load_geojson():
         with open(geojson_path) as f:
             return json.load(f)
     except Exception as e:
-        # We use st.warning here so the app doesn't crash if map data is missing
-        st.warning(f"⚠️ GeoJSON not found at {geojson_path}. Map may not render.")
+        # Warning instead of Error so the app doesn't crash if map data is missing
+        st.warning(f"GeoJSON load failed: {e}")
         return None
 
 df = load_data()
